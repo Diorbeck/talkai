@@ -29,12 +29,17 @@ Node.js 22+, TypeScript (strict, ESM), GramJS (`telegram`),
 
 ```bash
 npm install
-cp .env.example .env          # fill in Telegram + Anthropic credentials
-cp config.example.json config.json
+npm run setup    # creates .env and config.json from the examples (cross-platform)
 ```
+
+`npm run setup` works the same on Windows, macOS, and Linux — no `cp`/`copy`
+needed. Then edit the two files it created.
 
 Create a Telegram app at <https://my.telegram.org> to get `TELEGRAM_API_ID`
 and `TELEGRAM_API_HASH`, and put them in `.env`.
+
+> **Windows / cmd note:** don't paste inline `# comments` after a command —
+> cmd treats them as arguments. And use `npm run setup` instead of `cp`.
 
 ### 1. Log in (one time)
 
@@ -70,7 +75,12 @@ Edit `config.json`:
 
 - `self.userId` — your Telegram user id.
 - `runtime.allowlist` — chat ids you opt into watching. **Empty means nothing
-  is watched** (default-deny).
+  is watched** (default-deny). List your chats and their ids with:
+
+  ```bash
+  npm run chats
+  ```
+
 - `runtime.activeHours` / `rateLimit` / `delivery` — see below.
 
 Then:
@@ -132,7 +142,9 @@ the SQLite DB, and exports are all gitignored.
 ## Scripts
 
 ```bash
+npm run setup          # create .env + config.json from examples
 npm run login          # one-time Telegram login
+npm run chats          # list your chats + ids (for the allowlist)
 npm run parse -- <f>   # summarize an export
 npm run build-persona -- <f>   # build persona.json
 npm start              # run the reply co-pilot

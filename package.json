@@ -7,7 +7,9 @@
     "node": ">=22"
   },
   "scripts": {
+    "setup": "node scripts/setup.mjs",
     "login": "tsx src/login.ts",
+    "chats": "tsx src/chats.ts",
     "parse": "tsx src/parser/parseExport.ts",
     "build-persona": "tsx src/parser/buildPersona.ts",
     "start": "tsx src/index.ts",
