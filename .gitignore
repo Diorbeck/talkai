@@ -1,0 +1,17 @@
+node_modules/
+dist/
+*.log
+
+# Secrets and generated state — never commit these
+.env
+config.json
+persona.json
+suggestions.db
+suggestions.db-journal
+suggestions.db-wal
+suggestions.db-shm
+KILL
+
+# Chat-history exports may contain private data
+export/
+*.export.json

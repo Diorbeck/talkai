@@ -1,0 +1,32 @@
+{
+  "name": "talkai",
+  "version": "0.1.0",
+  "description": "A Telegram MTProto tool that learns your personal writing style from a chat-history export and drafts on-style replies for you to review and send.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "login": "tsx src/login.ts",
+    "parse": "tsx src/parser/parseExport.ts",
+    "build-persona": "tsx src/parser/buildPersona.ts",
+    "start": "tsx src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.4.7",
+    "pino": "^9.6.0",
+    "telegram": "^2.26.22",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.10.7",
+    "pino-pretty": "^13.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "self": {
+    "userId": "user000000000",
+    "comment": "Your own Telegram user id, e.g. user123456789. Used to identify which messages in the export are yours."
+  },
+  "anthropic": {
+    "model": "claude-opus-4-8",
+    "maxTokens": 1024
+  },
+  "persona": {
+    "path": "persona.json"
+  },
+  "runtime": {
+    "delivery": "terminal",
+    "allowlist": [],
+    "denylist": [],
+    "activeHours": {
+      "start": "09:00",
+      "end": "22:00",
+      "timezone": "Asia/Tashkent"
+    },
+    "rateLimit": {
+      "perChatPerHour": 8,
+      "globalPerHour": 40
+    },
+    "killSwitchFile": "KILL",
+    "dbPath": "suggestions.db"
+  }
+}
