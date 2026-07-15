@@ -4,7 +4,7 @@
   "description": "A Telegram MTProto tool that learns your personal writing style from a chat-history export and drafts on-style replies for you to review and send.",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": "22.x"
   },
   "scripts": {
     "setup": "node scripts/setup.mjs",
