@@ -41,6 +41,16 @@ export type StyleMetrics = z.infer<typeof StyleMetricsSchema>;
 export type FewShot = z.infer<typeof FewShotSchema>;
 export type Persona = z.infer<typeof PersonaSchema>;
 
+function validatePersona(raw: unknown, source: string): Persona {
+  const persona = PersonaSchema.parse(raw);
+  if (persona.version !== PERSONA_VERSION) {
+    throw new Error(
+      `persona (${source}) is version ${persona.version}, expected ${PERSONA_VERSION}. Rebuild it.`,
+    );
+  }
+  return persona;
+}
+
 /** Load and validate persona.json. */
 export function loadPersona(path: string): Persona {
   let raw: unknown;
@@ -51,11 +61,17 @@ export function loadPersona(path: string): Persona {
       `Could not read persona at ${path}. Run \`npm run build-persona\` first. (${(err as Error).message})`,
     );
   }
-  const persona = PersonaSchema.parse(raw);
-  if (persona.version !== PERSONA_VERSION) {
-    throw new Error(
-      `persona.json is version ${persona.version}, expected ${PERSONA_VERSION}. Rebuild it.`,
-    );
+  return validatePersona(raw, path);
+}
+
+/**
+ * Load the persona from the PERSONA_JSON environment variable (used when
+ * deployed, e.g. on Railway) if set, otherwise from the file at `path`.
+ */
+export function loadPersonaFromEnvOrFile(path: string): Persona {
+  const fromEnv = process.env.PERSONA_JSON;
+  if (fromEnv && fromEnv.trim()) {
+    return validatePersona(JSON.parse(fromEnv), "PERSONA_JSON env");
   }
-  return persona;
+  return loadPersona(path);
 }

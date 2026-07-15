@@ -1,5 +1,7 @@
+import { createServer } from "node:http";
+import { isAbsolute, join } from "node:path";
 import { loadConfig } from "./config.js";
-import { loadPersona } from "./llm/persona.js";
+import { loadPersonaFromEnvOrFile } from "./llm/persona.js";
 import { SuggestionStore } from "./db.js";
 import { SafetyGate } from "./bot/safety.js";
 import { Store } from "./store.js";
@@ -40,11 +42,25 @@ async function main(): Promise<void> {
   if (!token) throw new Error("BOT_TOKEN is not set. Run `npm run setup` or add it to your .env.");
   if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set (npm run setup).");
 
-  const persona = loadPersona(cfg.persona.path);
-  const suggestions = new SuggestionStore(cfg.runtime.dbPath);
+  // On Railway, mount a Volume and set DATA_DIR (e.g. /data) so the settings
+  // and the SQLite log survive redeploys.
+  const dataDir = process.env.DATA_DIR ?? ".";
+  const dbPath = isAbsolute(cfg.runtime.dbPath) ? cfg.runtime.dbPath : join(dataDir, cfg.runtime.dbPath);
+
+  const persona = loadPersonaFromEnvOrFile(cfg.persona.path);
+  const suggestions = new SuggestionStore(dbPath);
   const gate = new SafetyGate(cfg, suggestions);
-  const store = new Store("state.json");
+  const store = new Store(join(dataDir, "state.json"));
   const api = new BotApi(token);
+
+  // Health server so hosts like Railway see the worker as up (they set PORT).
+  const port = process.env.PORT;
+  if (port) {
+    createServer((_req, res) => {
+      res.writeHead(200, { "content-type": "text/plain" });
+      res.end("ok");
+    }).listen(Number(port), () => logger.info({ port }, "health server listening"));
+  }
 
   const me = await api.getMe();
   logger.info({ bot: me.username }, "control bot ready");

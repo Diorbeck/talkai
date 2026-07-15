@@ -96,6 +96,36 @@ npm start
 Incoming messages in allowlisted chats produce a draft in your terminal. Choose
 `s` to send as-is, `e` to edit then send, or `k` to skip.
 
+## Deploy to Railway (run 24/7 without your terminal)
+
+The Telegram Business bot can run on [Railway](https://railway.app) so it works
+even when your computer is off.
+
+1. **Push the repo to GitHub** (already done for this branch).
+2. On Railway: **New Project → Deploy from GitHub repo →** pick this repo and
+   the `claude/telegram-persona-reply-copilot-edat7u` branch.
+3. **Add a Volume** (Railway → your service → *Volumes* → mount at `/data`).
+   This keeps `state.json` (your connection + per-chat settings) and the
+   SQLite log across redeploys.
+4. **Set Variables** (Railway → *Variables*):
+   - `BOT_TOKEN` — your @BotFather token
+   - `GEMINI_API_KEY` — your Gemini key
+   - `DATA_DIR` — `/data` (the volume mount path)
+   - `PERSONA_JSON` — the full contents of your local `persona.json`
+     (on Windows, run `type persona.json | clip` to copy it, then paste)
+   - optionally `TZ` — e.g. `Asia/Tashkent` for active-hours
+5. Railway builds and starts it (`npm start`). Check the deploy logs for
+   `control bot ready`.
+6. **Connect the bot once more from the app** so the connection is captured on
+   the server: Telegram → *Settings → Telegram Business → Chatbots* → toggle
+   your bot off and on. The bot chat should say `✅ Подключено`.
+7. **Stop the local `npm start`** — only one instance may poll Telegram at a
+   time (two cause a `409 Conflict`).
+
+`config.json` is optional on Railway — defaults apply, and `PERSONA_JSON`
+replaces the persona file. Update the persona later by rebuilding it locally
+and pasting the new `persona.json` into `PERSONA_JSON`.
+
 ## Configuration (`config.json`)
 
 | Field | Meaning |
