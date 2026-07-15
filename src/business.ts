@@ -169,6 +169,7 @@ async function main(): Promise<void> {
 
     if (result.draft === null) {
       suggestions.record({ ...base, decision: "suppressed", sent_text: null });
+      await notifyAdmin(`🤫 Не ответил в «${title}»: ${result.reason}\nИм: ${incoming}`);
       return;
     }
 
