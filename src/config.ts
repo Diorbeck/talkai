@@ -15,7 +15,7 @@ const ConfigFileSchema = z.object({
   self: z.object({ userId: z.string().default("") }).default({ userId: "" }),
   gemini: z
     .object({
-      model: z.string().min(1).default("gemini-2.5-flash"),
+      model: z.string().min(1).default(process.env.GEMINI_MODEL ?? "gemini-2.5-flash"),
       maxTokens: z.number().int().positive().max(8192).default(1024),
     })
     .default({}),
