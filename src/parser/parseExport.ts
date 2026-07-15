@@ -185,9 +185,70 @@ export function parseExport(raw: RawExport, selfId: string): ParsedExport {
   return { chats, selfMessages, pairs };
 }
 
-/** Read and parse an export file from disk. */
+/**
+ * Repair a truncated JSON export by closing brackets left open at EOF.
+ * Telegram exports of large accounts can be cut off mid-write; this recovers
+ * every complete element up to the truncation point. Returns null if it can't
+ * find a clean point to repair from.
+ */
+export function repairTruncatedJson(text: string): string | null {
+  let inStr = false;
+  let esc = false;
+  const stack: string[] = [];
+  let cleanIdx = -1;
+  let cleanStack: string[] = [];
+
+  const mark = (idx: number) => {
+    cleanIdx = idx;
+    cleanStack = [...stack];
+  };
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i]!;
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === "\\") esc = true;
+      else if (c === '"') {
+        inStr = false;
+        mark(i + 1);
+      }
+      continue;
+    }
+    if (c === '"') {
+      inStr = true;
+    } else if (c === "{" || c === "[") {
+      stack.push(c);
+    } else if (c === "}" || c === "]") {
+      stack.pop();
+      mark(i + 1);
+    } else if (c === ",") {
+      mark(i); // clean point is just before the comma
+    }
+  }
+
+  if (cleanIdx === -1 || cleanStack.length === 0) return null;
+
+  let prefix = text.slice(0, cleanIdx).replace(/,\s*$/, "");
+  for (let i = cleanStack.length - 1; i >= 0; i--) {
+    prefix += cleanStack[i] === "{" ? "}" : "]";
+  }
+  return prefix;
+}
+
+/** Read and parse an export file from disk, repairing truncation if needed. */
 export function loadExport(path: string, selfId: string): ParsedExport {
-  const raw = JSON.parse(readFileSync(path, "utf8")) as RawExport;
+  const text = readFileSync(path, "utf8");
+  let raw: RawExport;
+  try {
+    raw = JSON.parse(text) as RawExport;
+  } catch (err) {
+    const repaired = repairTruncatedJson(text);
+    if (repaired === null) throw err;
+    raw = JSON.parse(repaired) as RawExport;
+    console.warn(
+      "Warning: the export was truncated (incomplete file). Recovered all complete messages up to the cut-off point.",
+    );
+  }
   return parseExport(raw, selfId);
 }
 
