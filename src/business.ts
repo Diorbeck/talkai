@@ -160,6 +160,29 @@ async function main(): Promise<void> {
       return;
     }
 
+    // Auto mode: send the draft directly, still respecting rate limits, and
+    // tell the admin what went out so they can course-correct.
+    if (chat.auto) {
+      const g = gate.canSend(chatId);
+      if (!g.ok) {
+        suggestions.record({ ...base, decision: "suppressed", sent_text: null });
+        return;
+      }
+      try {
+        await api.sendMessage({
+          chat_id: msg.chat.id,
+          text: result.draft,
+          business_connection_id: conn.id,
+        });
+        suggestions.record({ ...base, decision: "sent", sent_text: result.draft });
+        await notifyAdmin(`🤖 Авто-ответ → ${title}\nИм: ${incoming}\nОтвет: ${result.draft}`);
+      } catch (err) {
+        logger.error({ err }, "auto-send failed");
+        await notifyAdmin("⚠️ Авто-ответ не отправился (проверь права бота).");
+      }
+      return;
+    }
+
     const pid = String(++counter);
     pending.set(pid, {
       connectionId: conn.id,
@@ -281,6 +304,17 @@ async function main(): Promise<void> {
         await sendChatsList(cb.from.id, editMsg?.message_id);
         break;
       }
+      case "au": {
+        const chat = store.getChat(arg);
+        const next = !(chat?.auto ?? false);
+        if (chat) store.setAuto(arg, next);
+        await api.answerCallbackQuery(
+          cb.id,
+          next ? "Авто-режим: бот будет отвечать сам" : "Ручной режим: черновик с кнопками",
+        );
+        await sendChatsList(cb.from.id, editMsg?.message_id);
+        break;
+      }
       case "pr": {
         const chat = store.getChat(arg);
         awaitingPrompt.set(cb.from.id, arg);
@@ -298,10 +332,11 @@ async function main(): Promise<void> {
   const sendChatsList = async (chatId: number, editMessageId?: number): Promise<void> => {
     const chats = store.listChats();
     const text = chats.length
-      ? "Твои чаты. 🟢 — включён, ⚪ — выключен. ✏️ — задать промпт (✏️* = промпт уже задан)."
+      ? "Твои чаты.\n🟢/⚪ — следить за чатом.\n🤖 авто — отвечает сам, 🖐 вручную — присылает черновик с кнопками.\n✏️ — промпт для чата (✏️* = задан)."
       : "Пока нет известных чатов. Как только тебе кто-то напишет, чат появится здесь.";
     const keyboard: InlineKeyboard = chats.map(({ chatId: id, settings }) => [
-      { text: `${settings.enabled ? "🟢" : "⚪"} ${settings.title}`.slice(0, 60), callback_data: `tg:${id}` },
+      { text: `${settings.enabled ? "🟢" : "⚪"} ${settings.title}`.slice(0, 40), callback_data: `tg:${id}` },
+      { text: settings.auto ? "🤖 авто" : "🖐 вручную", callback_data: `au:${id}` },
       { text: settings.prompt ? "✏️*" : "✏️", callback_data: `pr:${id}` },
     ]);
     if (editMessageId) {
@@ -365,7 +400,10 @@ async function main(): Promise<void> {
     if (text.startsWith("/help")) {
       await api.sendMessage({
         chat_id: msg.chat.id,
-        text: "Команды: /chats — чаты и промпты, /status — статус. Черновик приходит с кнопками Отправить / Править / Пропустить.",
+        text:
+          "Команды: /chats — чаты, режим и промпты; /status — статус.\n" +
+          "В /chats для каждого чата: 🟢/⚪ следить, 🤖 авто / 🖐 вручную, ✏️ промпт.\n" +
+          "🖐 вручную — черновик с кнопками Отправить/Править/Пропустить. 🤖 авто — бот отвечает сам (на сомнительных сообщениях всё равно молчит).",
       });
       return;
     }

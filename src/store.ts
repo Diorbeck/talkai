@@ -3,6 +3,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 export interface ChatSettings {
   title: string;
   enabled: boolean;
+  /** When true, approved-style drafts are sent automatically (no button). */
+  auto?: boolean;
   prompt?: string;
 }
 
@@ -72,6 +74,14 @@ export class Store {
     const chat = this.state.chats[chatId];
     if (chat) {
       chat.enabled = enabled;
+      this.save();
+    }
+  }
+
+  setAuto(chatId: string, auto: boolean): void {
+    const chat = this.state.chats[chatId];
+    if (chat) {
+      chat.auto = auto;
       this.save();
     }
   }
