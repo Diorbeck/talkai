@@ -42,10 +42,12 @@ async function main(): Promise<void> {
   if (!token) throw new Error("BOT_TOKEN is not set. Run `npm run setup` or add it to your .env.");
   if (!process.env.GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not set (npm run setup).");
 
-  // On Railway, mount a Volume and set DATA_DIR (e.g. /data) so the settings
-  // and the SQLite log survive redeploys.
-  const dataDir = process.env.DATA_DIR ?? ".";
+  // Persist settings + the SQLite log on a mounted volume so they survive
+  // redeploys. Prefer an explicit DATA_DIR; otherwise auto-detect Railway's
+  // volume mount path; fall back to the working directory locally.
+  const dataDir = process.env.DATA_DIR ?? process.env.RAILWAY_VOLUME_MOUNT_PATH ?? ".";
   const dbPath = isAbsolute(cfg.runtime.dbPath) ? cfg.runtime.dbPath : join(dataDir, cfg.runtime.dbPath);
+  logger.info({ dataDir }, "using data directory");
 
   const persona = loadPersonaFromEnvOrFile(cfg.persona.path);
   const suggestions = new SuggestionStore(dbPath);
