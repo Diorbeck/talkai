@@ -51,17 +51,18 @@ async function main() {
     return ans || cur;
   };
 
-  const apiId = await askKeep("Telegram API ID", "TELEGRAM_API_ID");
-  const apiHash = await askKeep("Telegram API hash", "TELEGRAM_API_HASH");
+  const botToken = await askKeep("Токен бота (@BotFather)", "BOT_TOKEN");
   const geminiKey = await askKeep("Gemini API key", "GEMINI_API_KEY");
   rl.close();
 
   const env = {
-    TELEGRAM_API_ID: apiId || "0",
-    TELEGRAM_API_HASH: apiHash,
-    TELEGRAM_SESSION: existing.TELEGRAM_SESSION ?? "",
+    BOT_TOKEN: botToken,
     GEMINI_API_KEY: geminiKey,
     LOG_LEVEL: existing.LOG_LEVEL ?? "info",
+    // Preserve any legacy MTProto values.
+    TELEGRAM_API_ID: existing.TELEGRAM_API_ID ?? "",
+    TELEGRAM_API_HASH: existing.TELEGRAM_API_HASH ?? "",
+    TELEGRAM_SESSION: existing.TELEGRAM_SESSION ?? "",
   };
   writeFileSync(
     ".env",
@@ -70,18 +71,16 @@ async function main() {
 
   console.log("\n.env сохранён.");
   const missing = [];
-  if (!apiHash) missing.push("TELEGRAM_API_HASH");
+  if (!botToken) missing.push("BOT_TOKEN");
   if (!geminiKey) missing.push("GEMINI_API_KEY");
   if (missing.length) {
     console.log(`Ещё не заполнено: ${missing.join(", ")} — запусти "npm run setup" ещё раз, когда получишь их.`);
   }
 
   console.log("\nДальше:");
-  console.log("  1. npm run login   (вход в Telegram; сессия сохранится в .env сама)");
-  console.log("  2. npm run chats   (узнать id чатов для allowlist)");
-  console.log("  3. отредактируй config.json: self.userId и runtime.allowlist");
-  console.log("  4. npm run build-persona -- путь\\к\\result.json");
-  console.log("  5. npm start");
+  console.log("  1. npm start   (запусти бота)");
+  console.log("  2. В Telegram: Настройки → Telegram для бизнеса → Чат-боты → выбери своего бота, разреши отвечать");
+  console.log("  3. Напиши боту /start, затем /chats — включи чаты и задай промпты");
 }
 
 main().catch((err) => {

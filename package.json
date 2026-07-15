@@ -13,7 +13,8 @@
     "watch": "tsx src/watch.ts",
     "parse": "tsx src/parser/parseExport.ts",
     "build-persona": "tsx src/parser/buildPersona.ts",
-    "start": "tsx src/index.ts",
+    "start": "tsx src/business.ts",
+    "start:mtproto": "tsx src/index.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },

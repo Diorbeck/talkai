@@ -45,10 +45,12 @@ export type Config = z.infer<typeof ConfigFileSchema> & {
 };
 
 const EnvSchema = z.object({
-  TELEGRAM_API_ID: z.coerce.number().int().positive(),
-  TELEGRAM_API_HASH: z.string().min(1),
+  // Only needed for the legacy MTProto mode (npm run start:mtproto / login).
+  TELEGRAM_API_ID: z.coerce.number().int().optional().default(0),
+  TELEGRAM_API_HASH: z.string().optional().default(""),
   TELEGRAM_SESSION: z.string().default(""),
   GEMINI_API_KEY: z.string().min(1).optional(),
+  BOT_TOKEN: z.string().optional(),
 });
 
 /**

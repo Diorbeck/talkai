@@ -15,6 +15,8 @@ export interface ContextTurn {
 export interface GenerateInput {
   incoming: string;
   context: ContextTurn[];
+  /** Optional extra instructions specific to this chat (set from the bot). */
+  perChatPrompt?: string;
 }
 
 export interface GenerateResult {
@@ -50,15 +52,19 @@ function parseJsonObject(text: string): unknown {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
-function buildSystemPrompt(persona: Persona): string {
+function buildSystemPrompt(persona: Persona, perChatPrompt?: string): string {
   const examples = persona.fewShot
     .slice(0, FEW_SHOT_LIMIT)
     .map((ex, i) => `Example ${i + 1}\n  Them: ${ex.incoming}\n  You: ${ex.reply}`)
     .join("\n");
 
+  const chatBlock = perChatPrompt?.trim()
+    ? `\nExtra instructions for THIS chat (from the user, follow them): ${perChatPrompt.trim()}\n`
+    : "";
+
   return [
     persona.systemPromptTemplate,
-    "",
+    chatBlock,
     "Examples of how the user actually replies (contact PII is redacted as [name], [phone], etc.):",
     examples || "(no examples available)",
     "",
@@ -100,7 +106,7 @@ export async function generateDraft(
   if (!apiKey) return { draft: null, reason: "GEMINI_API_KEY not set" };
 
   const body = {
-    systemInstruction: { parts: [{ text: buildSystemPrompt(persona) }] },
+    systemInstruction: { parts: [{ text: buildSystemPrompt(persona, input.perChatPrompt) }] },
     contents: [{ role: "user", parts: [{ text: buildUserMessage(input) }] }],
     generationConfig: {
       responseMimeType: "application/json",
