@@ -119,9 +119,19 @@ async function main(): Promise<void> {
   };
 
   // ---- Incoming business message (a contact wrote to the user) ----
+  let warnedNoConn = false;
   const onBusinessMessage = async (msg: TgMessage): Promise<void> => {
     const conn = store.getConnection();
-    if (!conn || !msg.business_connection_id) return;
+    if (!conn) {
+      if (!warnedNoConn) {
+        warnedNoConn = true;
+        logger.warn(
+          "received a business message but no connection is stored — reconnect the bot in Telegram Business settings (toggle it off and on). Set DATA_DIR to a mounted volume so this survives redeploys.",
+        );
+      }
+      return;
+    }
+    if (!msg.business_connection_id) return;
     if (msg.from?.id === conn.userId) return; // the user's own outgoing message
     const incoming = msg.text?.trim();
     if (!incoming) return;
