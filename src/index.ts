@@ -10,8 +10,8 @@ import { logger } from "./logger.js";
 async function main(): Promise<void> {
   const cfg = loadConfig();
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("ANTHROPIC_API_KEY is not set. Add it to your .env.");
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is not set. Run `npm run setup` or add it to your .env.");
   }
 
   const persona = loadPersona(cfg.persona.path);

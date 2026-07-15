@@ -83,7 +83,7 @@ export function makeHandler(deps: HandlerDeps) {
       incoming_text: incoming,
       draft: result.draft,
       reason: result.reason,
-      model: cfg.anthropic.model,
+      model: cfg.gemini.model,
     };
 
     if (result.draft === null) {

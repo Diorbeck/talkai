@@ -15,8 +15,8 @@ const ConfigFileSchema = z.object({
       .min(1)
       .describe("Your own Telegram user id, e.g. user123456789"),
   }),
-  anthropic: z.object({
-    model: z.string().min(1).default("claude-opus-4-8"),
+  gemini: z.object({
+    model: z.string().min(1).default("gemini-2.5-flash"),
     maxTokens: z.number().int().positive().max(8192).default(1024),
   }),
   persona: z.object({
@@ -48,7 +48,7 @@ const EnvSchema = z.object({
   TELEGRAM_API_ID: z.coerce.number().int().positive(),
   TELEGRAM_API_HASH: z.string().min(1),
   TELEGRAM_SESSION: z.string().default(""),
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  GEMINI_API_KEY: z.string().min(1).optional(),
 });
 
 /**

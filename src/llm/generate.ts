@@ -1,11 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { Persona } from "./persona.js";
 import type { Config } from "../config.js";
 import { logger } from "../logger.js";
 
-const client = new Anthropic();
-
+const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 const FEW_SHOT_LIMIT = 12;
 const MAX_CONTEXT_TURNS = 6;
 
@@ -20,7 +18,7 @@ export interface GenerateInput {
 }
 
 export interface GenerateResult {
-  /** The candidate reply, or null when the model declined to draft one. */
+  /** The candidate reply, or null when no draft should be sent. */
   draft: string | null;
   reason: string;
 }
@@ -30,6 +28,16 @@ const OutputSchema = z.object({
   draft: z.string(),
   reason: z.string(),
 });
+
+// Minimal shape of the Gemini generateContent REST response.
+interface GeminiResponse {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+    finishReason?: string;
+  }[];
+  promptFeedback?: { blockReason?: string };
+  error?: { message?: string };
+}
 
 /** Extract and parse the first JSON object from the model's text output. */
 function parseJsonObject(text: string): unknown {
@@ -80,42 +88,68 @@ function buildUserMessage(input: GenerateInput): string {
 
 /**
  * Generate a candidate reply for the incoming message, or null when the model
- * declines (uncertain / sensitive / low confidence). Never sends anything.
+ * declines (uncertain / sensitive / low confidence / safety-blocked). Never
+ * sends anything. Calls the Gemini generateContent REST endpoint directly.
  */
 export async function generateDraft(
   cfg: Config,
   persona: Persona,
   input: GenerateInput,
 ): Promise<GenerateResult> {
-  let response: Anthropic.Message;
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return { draft: null, reason: "GEMINI_API_KEY not set" };
+
+  const body = {
+    systemInstruction: { parts: [{ text: buildSystemPrompt(persona) }] },
+    contents: [{ role: "user", parts: [{ text: buildUserMessage(input) }] }],
+    generationConfig: {
+      responseMimeType: "application/json",
+      maxOutputTokens: cfg.gemini.maxTokens,
+      temperature: 0.7,
+      // Disable "thinking" so short replies stay fast and cheap. Valid on the
+      // 2.5 flash/pro models; harmless placeholder for others.
+      thinkingConfig: { thinkingBudget: 0 },
+    },
+  };
+
+  let data: GeminiResponse;
   try {
-    response = await client.messages.create({
-      model: cfg.anthropic.model,
-      max_tokens: cfg.anthropic.maxTokens,
-      system: buildSystemPrompt(persona),
-      messages: [{ role: "user", content: buildUserMessage(input) }],
-    });
+    const res = await fetch(
+      `${ENDPOINT}/${encodeURIComponent(cfg.gemini.model)}:generateContent`,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    data = (await res.json()) as GeminiResponse;
+    if (!res.ok) {
+      logger.error({ status: res.status, error: data.error?.message }, "Gemini request failed");
+      return { draft: null, reason: "generation failed" };
+    }
   } catch (err) {
-    logger.error({ err }, "Claude request failed");
+    logger.error({ err }, "Gemini request error");
     return { draft: null, reason: "generation failed" };
   }
 
-  if (response.stop_reason === "refusal") {
-    return { draft: null, reason: "model refused (safety)" };
+  if (data.promptFeedback?.blockReason) {
+    return { draft: null, reason: `blocked (${data.promptFeedback.blockReason})` };
   }
 
-  const textBlock = response.content.find(
-    (b): b is Anthropic.TextBlock => b.type === "text",
-  );
-  if (!textBlock) {
-    return { draft: null, reason: "no text in response" };
+  const candidate = data.candidates?.[0];
+  const text = candidate?.content?.parts?.map((p) => p.text ?? "").join("").trim();
+  if (!text) {
+    return { draft: null, reason: `no text (${candidate?.finishReason ?? "empty"})` };
   }
 
   let parsed: z.infer<typeof OutputSchema>;
   try {
-    parsed = OutputSchema.parse(parseJsonObject(textBlock.text));
+    parsed = OutputSchema.parse(parseJsonObject(text));
   } catch (err) {
-    logger.warn({ err, raw: textBlock.text }, "could not parse model output");
+    logger.warn({ err, raw: text }, "could not parse model output");
     return { draft: null, reason: "unparseable output" };
   }
 

@@ -15,7 +15,7 @@ proposes a draft; it never sends anything on its own.
    examples.
 2. **Reply co-pilot** — signs into your own Telegram account, watches an
    explicit allowlist of chats, drafts a candidate reply in your voice via the
-   Claude API, and shows it to you to **send / edit / skip**. Includes a
+   Gemini API, and shows it to you to **send / edit / skip**. Includes a
    prompt-injection guard, a rule to stay silent on uncertain or sensitive
    topics, active-hours gating, rate limits, a kill switch, and SQLite logging
    of every suggestion.
@@ -23,23 +23,27 @@ proposes a draft; it never sends anything on its own.
 ## Stack
 
 Node.js 22+, TypeScript (strict, ESM), GramJS (`telegram`),
-`@anthropic-ai/sdk`, `zod`, `dotenv`, `better-sqlite3`, `pino`.
+ `zod`, `dotenv`, `better-sqlite3`, `pino`.
 
 ## Setup
 
 ```bash
 npm install
-npm run setup    # creates .env and config.json from the examples (cross-platform)
+npm run setup    # interactively asks for your keys and writes .env + config.json
 ```
 
-`npm run setup` works the same on Windows, macOS, and Linux — no `cp`/`copy`
-needed. Then edit the two files it created.
+`npm run setup` prompts for `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, and
+`GEMINI_API_KEY` and writes them to `.env` for you — no manual file editing,
+same on Windows, macOS, and Linux. Press Enter at a prompt to keep the current
+value. Re-run it any time to change a key.
 
-Create a Telegram app at <https://my.telegram.org> to get `TELEGRAM_API_ID`
-and `TELEGRAM_API_HASH`, and put them in `.env`.
+Get the values here:
+
+- Telegram `api_id` / `api_hash`: <https://my.telegram.org> → *API development tools*.
+- Gemini API key: <https://aistudio.google.com/apikey>.
 
 > **Windows / cmd note:** don't paste inline `# comments` after a command —
-> cmd treats them as arguments. And use `npm run setup` instead of `cp`.
+> cmd treats them as arguments.
 
 ### 1. Log in (one time)
 
@@ -47,9 +51,9 @@ and `TELEGRAM_API_HASH`, and put them in `.env`.
 npm run login
 ```
 
-Enter your phone, the login code, and 2FA password if you have one. It prints a
-`TELEGRAM_SESSION=...` string — paste it into `.env`. The session grants full
-access to your account; keep it secret.
+Enter your phone, the login code, and 2FA password if you have one. The session
+string is saved to `.env` automatically. It grants full access to your account;
+keep `.env` secret.
 
 ### 2. Build your persona (Phases 1–2: the analyzer)
 
@@ -97,8 +101,8 @@ Incoming messages in allowlisted chats produce a draft in your terminal. Choose
 | Field | Meaning |
 | --- | --- |
 | `self.userId` | Your Telegram user id (`user…`), used to identify your messages in the export. |
-| `anthropic.model` | Claude model for drafting (default `claude-opus-4-8`). |
-| `anthropic.maxTokens` | Max tokens per draft. |
+| `gemini.model` | Gemini model for drafting (default `gemini-2.5-flash`). |
+| `gemini.maxTokens` | Max tokens per draft. |
 | `runtime.delivery` | `terminal` (prompt in the terminal) or `saved` (also mirror drafts into Saved Messages; the terminal stays the control surface). |
 | `runtime.allowlist` / `denylist` | Chat ids to watch / never watch. |
 | `runtime.activeHours` | `start`/`end` (`HH:MM`) and IANA `timezone`; outside this window nothing is drafted. |
@@ -107,7 +111,7 @@ Incoming messages in allowlisted chats produce a draft in your terminal. Choose
 | `runtime.dbPath` | SQLite log of suggestions and decisions. |
 
 Secrets live only in `.env` (`TELEGRAM_API_ID`, `TELEGRAM_API_HASH`,
-`TELEGRAM_SESSION`, `ANTHROPIC_API_KEY`). `.env`, `config.json`, `persona.json`,
+`TELEGRAM_SESSION`, `GEMINI_API_KEY`). `.env`, `config.json`, `persona.json`,
 the SQLite DB, and exports are all gitignored.
 
 ## Safety model
@@ -126,12 +130,13 @@ the SQLite DB, and exports are all gitignored.
 
 | Module | Role |
 | --- | --- |
-| `src/login.ts` | One-time interactive login; prints the session string. |
+| `src/login.ts` | One-time interactive login; saves the session to `.env`. |
+| `src/chats.ts` | Lists your dialogs with ids (for the allowlist). |
 | `src/config.ts` | zod-validated `config.json` + `.env` loader. |
 | `src/parser/parseExport.ts` | Parses the export, extracts pairs, redacts PII. |
 | `src/parser/buildPersona.ts` | Computes style metrics; emits `persona.json`. |
 | `src/llm/persona.ts` | Persona types and loader. |
-| `src/llm/generate.ts` | Assembles the prompt, calls Claude, returns a draft or `null`. |
+| `src/llm/generate.ts` | Assembles the prompt, calls Gemini, returns a draft or `null`. |
 | `src/bot/client.ts` | Builds the `TelegramClient` from the session string. |
 | `src/bot/handler.ts` | `NewMessage` handler: safety filters → context → draft → review. |
 | `src/bot/review.ts` | Delivers the draft to you for approval. |
